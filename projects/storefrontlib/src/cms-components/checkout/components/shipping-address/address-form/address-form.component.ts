@@ -22,7 +22,7 @@ import {
   UserAddressService,
   UserService,
 } from '@spartacus/core';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, combineLatest, Observable, Subscription } from 'rxjs';
 import { map, switchMap, take, tap } from 'rxjs/operators';
 import {
   ModalRef,
@@ -67,8 +67,6 @@ export class AddressFormComponent implements OnInit, OnDestroy {
   @Output()
   backToAddress = new EventEmitter<any>();
 
-  noneTitle: Title;
-
   addressVerifySub: Subscription;
   regionsSub: Subscription;
   suggestedAddressModalRef: ModalRef;
@@ -111,26 +109,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       })
     );
 
-    // Fetching noneTitle text
-    this.translation
-      .translate('addressForm.noneTitle')
-      .pipe(
-        map((noneTitleText) => ({
-          code: '',
-          name: noneTitleText,
-        }))
-      )
-      .subscribe((noneTitle) => {
-        this.noneTitle = noneTitle;
-      });
-
     // Fetching titles
-    this.titles$ = this.userService.getTitles().pipe(
-      map((titles) => {
-        titles.sort(sortTitles);
-        return [this.noneTitle, ...titles];
-      })
-    );
+    this.titles$ = this.getTitles();
 
     // Fetching regions
     this.regions$ = this.selectedCountry$.pipe(
@@ -186,6 +166,19 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     }
 
     this.addresses$ = this.userAddressService.getAddresses();
+  }
+
+  getTitles(): Observable<Title[]> {
+    return combineLatest([
+      this.translation.translate('addressForm.noneTitle'),
+      this.userService.getTitles(),
+    ]).pipe(
+      map(([noneTitleText, titles]) => {
+        const noneTitle = { code: '', name: noneTitleText };
+        titles.sort(sortTitles);
+        return [noneTitle, ...titles];
+      })
+    );
   }
 
   countrySelected(country: Country): void {
